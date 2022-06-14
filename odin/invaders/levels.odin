@@ -1,6 +1,6 @@
 package invaders
 
-fader_alpha: float = 0;
+fader_alpha: f32 = 0;
 fader_text := "";
 
 level_one :: proc() {

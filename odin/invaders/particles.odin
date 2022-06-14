@@ -1,35 +1,38 @@
 package invaders
 
+import "core:math"
+import "core:math/linalg"
+
 Particle_Emitter :: struct {
-    position: Vector2,
-    velocity: Vector2,
+    position: linalg.Vector2f32,
+    velocity: linalg.Vector2f32,
 
     particles: [dynamic]Particle,
-    fadeout_period: float,
-    particles_per_second: float,
+    fadeout_period: f32,
+    particles_per_second: f32,
 
-    speed0: float,
-    speed1: float,
+    speed0: f32,
+    speed1: f32,
 
-    size0: float,
-    size1: float,
+    size0: f32,
+    size1: f32,
 
-    drag0: float,
-    drag1: float,
+    drag0: f32,
+    drag1: f32,
 
-    lifetime0: float,
-    lifetime1: float,
+    lifetime0: f32,
+    lifetime1: f32,
 
-    emitter_lifetime: float,
+    emitter_lifetime: f32,
 
-    theta0: float,
-    theta1: float,
+    theta0: f32,
+    theta1: f32,
 
-    color0: Vector4,
-    color1: Vector4,
+    color0: linalg.Vector4f32,
+    color1: linalg.Vector4f32,
 
-    elapsed: float,
-    remainder: float,
+    elapsed: f32,
+    remainder: f32,
 
     producing: bool,
 }
@@ -45,21 +48,21 @@ default_particle_emitter :: Particle_Emitter {
     lifetime0 = 0.4,
     lifetime1 = 1.0,
     emitter_lifetime = -1.0,
-    theta1 = TAU,
+    theta1 = math.τ, // or math.TAU,
     producing = true,
 }
 
 Particle :: struct {
-    position: Vector2,
-    velocity: Vector2,
+    position: linalg.Vector2f32,
+    velocity: linalg.Vector2f32,
 
-    size: float,
-    lifetime: float,
-    drag: float,
+    size: f32,
+    lifetime: f32,
+    drag: f32,
 
-    elapsed: float,
+    elapsed: f32,
 
-    color: Vector4,
+    color: linalg.Vector4f32,
 }
 
 default_particle :: Particle {
@@ -71,7 +74,7 @@ deinit :: proc(emitter: ^Particle_Emitter) {
     array_free(emitter.particles);
 }
 
-update_emitter :: proc(emitter: ^Particle_Emitter, dt: float) {
+update_emitter :: proc(emitter: ^Particle_Emitter, dt: f32) {
     for i := 0; i < len(emitter.particles); i += 1 {
         p := emitter.particles[i]
         sim_particle(p, dt);
@@ -128,7 +131,7 @@ update_emitter :: proc(emitter: ^Particle_Emitter, dt: float) {
         ct := cos(theta);
         st := sin(theta);
         
-        v_rel: Vector2 = ---;
+        v_rel: linalg.Vector2f32 = ---;
         v_rel.x = speed * ct;
         v_rel.y = speed * st;
 
@@ -137,7 +140,7 @@ update_emitter :: proc(emitter: ^Particle_Emitter, dt: float) {
         return p;
     }
 
-    sim_particle :: proc(p: ^Particle, dt: float) {
+    sim_particle :: proc(p: ^Particle, dt: f32) {
         linear_move(&p.position, &p.velocity, dt);
 
         // @Incomplete: Apply correct drag over time.
@@ -166,7 +169,7 @@ draw_emitter :: proc(emitter: ^Particle_Emitter) {
         c := it.color;
         c.w *= alpha;
 
-        pos := it.position * cast(float) window_width;
+        pos := it.position * cast(f32) window_width;
         s := it.size * window_width * .5;
         Simp.immediate_quad(pos.x-s, pos.y-s, pos.x+s, pos.y+s, c);
     }

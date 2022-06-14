@@ -1,5 +1,10 @@
 package invaders
 
+import "core:math"
+import "core:math/linalg"
+import SDL "vendor:sdl2"
+import "vendor:sdl2/mixer"
+
 // #import "Basic";
 // #import "Hash_Table";
 // #import "Math";
@@ -15,14 +20,14 @@ package invaders
 // #import "System";
 
 // Simp    :: #import "Simp";
-Texture :: Simp.Texture;
+// Texture :: Simp.Texture;
 
 // #load "entities.jai";
 // #load "levels.jai";
 // #load "particles.jai";
 
-window_width  : s32 = 1280; 
-window_height : s32 = 720;
+window_width  : i32 = 1280;
+window_height : i32 = 720;
 
 WAV :: "wav";
 OGG :: "ogg";
@@ -36,25 +41,25 @@ should_ignore_input := false;
 should_quit_game    := false;
 
 
-sound_alien_dies:          ^Mixer_Sound_Data;
-sound_fire_bullet1:        ^Mixer_Sound_Data;
-sound_fire_bullet2:        ^Mixer_Sound_Data;
-sound_fire_bullet3:        ^Mixer_Sound_Data;
-sound_invader_fire_bullet: ^Mixer_Sound_Data;
-sound_new_wave:            ^Mixer_Sound_Data;
-sound_pickup_fail:         ^Mixer_Sound_Data;
-sound_pickup_succeed:      ^Mixer_Sound_Data;
-sound_player_dies:         ^Mixer_Sound_Data;
-sound_shield_begin:        ^Mixer_Sound_Data;
-sound_shield_end:          ^Mixer_Sound_Data;
-sound_shield_loop:         ^Mixer_Sound_Data;  // Currently unused?! @Cleanup
-sound_bullet_reset:        ^Mixer_Sound_Data;
+sound_alien_dies:          ^mixer.Music;
+sound_fire_bullet1:        ^mixer.Music;
+sound_fire_bullet2:        ^mixer.Music;
+sound_fire_bullet3:        ^mixer.Music;
+sound_invader_fire_bullet: ^mixer.Music;
+sound_new_wave:            ^mixer.Music;
+sound_pickup_fail:         ^mixer.Music;
+sound_pickup_succeed:      ^mixer.Music;
+sound_player_dies:         ^mixer.Music;
+sound_shield_begin:        ^mixer.Music;
+sound_shield_end:          ^mixer.Music;
+sound_shield_loop:         ^mixer.Music;  // Currently unused?! @Cleanup
+sound_bullet_reset:        ^mixer.Music;
 
 sound_player: ^Sound_Player;
 
-current_dt: float = 0.016667;
-last_time:  float64;
-DT_MAX : float : 0.15;
+current_dt: f32 = 0.016667;
+last_time:  f64;
+DT_MAX : f32 : 0.15;
 
 live_y_max := 1.1;
 live_y_min := -0.1;
@@ -97,41 +102,41 @@ end_game_countdown     := -1.0;
 
 my_font: ^Simp.Dynamic_Font;
 
-ship_position: Vector2;
+ship_position: linalg.Vector2f32;
 
 ship_destroyed                := false;
-ship_shot_type                := Shot_Type.STRAIGHT_SINGLE;               
+ship_shot_type                := Shot_Type.STRAIGHT_SINGLE;
 ship_shot_cooldown            := 0.0;
 ship_shot_cooldown_base       := 0.08;
 ship_shot_cooldown_per_bullet := 0.15;
 ship_invincibility_countdown  := 0.0;
 ship_v_shot_countdown         := 0.0;
 
-invader_maps : [dynamic]Texture;
+invader_maps : [dynamic]^SDL.Texture;
 
-sky_map                 : Texture;
-ship_map                : Texture;
-ship_bullet_map         : Texture;
-invader_bullet_map      : Texture;
-contrail_map            : Texture;
-pickup_map_v_shot       : Texture;
-pickup_map_shield       : Texture;
-pickup_map_extra_bullet : Texture;
+sky_map                 : ^SDL.Texture;
+ship_map                : ^SDL.Texture;
+ship_bullet_map         : ^SDL.Texture;
+invader_bullet_map      : ^SDL.Texture;
+contrail_map            : ^SDL.Texture;
+pickup_map_v_shot       : ^SDL.Texture;
+pickup_map_shield       : ^SDL.Texture;
+pickup_map_extra_bullet : ^SDL.Texture;
 
 update_proc_side :: proc(self: ^Invader) {
     rate :: 1.5;
-    theta := last_time * TAU64 * rate;
-    y := cos(cast(float) theta);
+    theta := last_time * math.τ * rate;
+    y := math.cos(cast(f32) theta);
 
     self.position.x += y * 0.5 * current_dt;
 }
 
-update_proc_circle :: proc(self: ^Invader) { 
+update_proc_circle :: proc(self: ^Invader) {
     rate :: 1.5;
-    theta := last_time * TAU64 * rate;
+    theta := last_time * math.τ * rate;
 
-    x := cos(cast(float) theta);
-    y := sin(cast(float) theta);
+    x := math.cos(cast(f32) theta);
+    y := math.sin(cast(f32) theta);
 
     r := 0.5 * current_dt;
     self.position.x += x * r;
@@ -156,7 +161,7 @@ main :: proc() {
     //
     // Load sound effects
     //
-    load_sound :: proc(basename: string) -> ^Mixer_Sound_Data {
+    load_sound :: proc(basename: string) -> ^mixer.Music {
         name := tprint("data/%.wav", basename);
         data := load_audio_file(name);
 
@@ -191,7 +196,7 @@ main :: proc() {
     sound_shield_end          = load_sound("shield_end");
     sound_shield_loop         = load_sound("shield_loop");
     sound_bullet_reset        = load_sound("too_many_bullets");
-    
+
     //
     // Create the music stream.
     //
@@ -200,7 +205,7 @@ main :: proc() {
 
         data := load_audio_file(name);
 
-        if !data {
+        if data == nil {
             print("Could not load theme music: %\n", name);
             exit(1); // Hard-exit for now.
         }
@@ -230,13 +235,13 @@ main :: proc() {
     //
     // Setup editable properties for the sprites.
     //
-    unit_color := Vector4 {1, 1, 1, 1};
+    unit_color := linalg.Vector4f32 {1, 1, 1, 1};
     ship_color, invader_color, pickup_color, bullet_color := unit_color;
 
-    ship_size    := make_vector2(SHIP_RADIUS*2,    SHIP_RADIUS*2);
-    pickup_size  := make_vector2(PICKUP_RADIUS*2,  PICKUP_RADIUS*2);
-    invader_size := make_vector2(INVADER_RADIUS*2, INVADER_RADIUS*2);
-    bullet_size  := make_vector2(BULLET_RADIUS*2,  BULLET_RADIUS*2);
+    ship_size    := linalg.Vector2f32{SHIP_RADIUS*2,    SHIP_RADIUS*2};
+    pickup_size  := linalg.Vector2f32{PICKUP_RADIUS*2,  PICKUP_RADIUS*2};
+    invader_size := linalg.Vector2f32{INVADER_RADIUS*2, INVADER_RADIUS*2};
+    bullet_size  := linalg.Vector2f32{BULLET_RADIUS*2,  BULLET_RADIUS*2};
 
     for !should_quit_game {
         Simp.clear_render_target(.2, .3, .3, 1);
@@ -248,24 +253,24 @@ main :: proc() {
             Simp.update_window(it.window);
             if it.window == window {
                 should_reinit := (it.width != window_width) || (it.height != window_height);
-                
+
                 window_width  = it.width;
                 window_height = it.height;
 
                 if should_reinit { my_init_fonts() }
             }
         }
-        
+
         invaders_simulate();
 
         { // Draw the sky background.
             Simp.set_shader_for_images(&sky_map);
 
-            sky_color := Vector4 {1,1,1,1};
+            sky_color := linalg.Vector4f32 {1,1,1,1};
 
             Simp.immediate_quad(0, 0, render_width.?, render_height.?, sky_color);
         }
-        
+
         for it in live_bullets {
             render_sprite_quad_centered(it.texture, it.position, bullet_size, bullet_color);
         }
@@ -286,10 +291,10 @@ main :: proc() {
             text_width := Simp.prepare_text(my_font, fader_text);
             text_x := (window_width - text_width) / 2;
             text_y := window_height*.7 - my_font.character_height;
-            color  := make_vector4(0.5, 0.8, 0.2, fader_alpha);
+            color  := make_linalg.Vector4f32(0.5, 0.8, 0.2, fader_alpha);
 
             Simp.draw_prepared_text(my_font, text_x.?, text_y.?, color);
-            
+
             if fader_alpha > 0 {
                 dt := current_dt;
                 fader_alpha -= dt * 0.5;
@@ -312,7 +317,7 @@ init_textures :: proc() {
     ship_map                = make_texture("data/ship.png");
 
     sky_map                 = make_texture("data/sky.png");
-    
+
     ship_bullet_map         = make_texture("data/bullet.png");
     invader_bullet_map      = make_texture("data/invader_bullet.png");
     contrail_map            = make_texture("data/contrail.png");
@@ -331,8 +336,8 @@ init_textures :: proc() {
     array_add(&invader_maps, bug4);
 }
 
-make_texture :: proc(filename: string) -> (Texture, bool) {
-    result: Texture;
+make_texture :: proc(filename: string) -> (^SDL.Texture, bool) {
+    result: ^SDL.Texture;
     success := Simp.texture_load_from_file(&result, filename);
 
     return result, success;
@@ -370,8 +375,8 @@ add_invader :: proc() {
 
 invaders_simulate :: proc() {
     now := get_time();
-    delta : float64 = now - last_time;
-    current_dt = cast(float) delta;
+    delta : f64 = now - last_time;
+    current_dt = cast(f32) delta;
 
     if current_dt > DT_MAX { current_dt = DT_MAX }
 
@@ -379,7 +384,7 @@ invaders_simulate :: proc() {
 
     update_sound_player(current_dt);
 
-    countdown :: proc(value : float) -> float {
+    countdown :: proc(value : f32) -> f32 {
         value -= current_dt;
         if value < 0 { value = 0 }
         return value;
@@ -429,8 +434,8 @@ invaders_simulate :: proc() {
 
     // Put direction into a vector, then normalize, so that
     // you don't move faster diagonally!
-    dx: Vector2;
-    
+    dx: linalg.Vector2f32;
+
     if key_up    { dx.y += 1 }
     if key_left  { dx.x -= 1 }
     if key_down  { dx.y -= 1 }
@@ -439,17 +444,17 @@ invaders_simulate :: proc() {
     if length(dx) > 1 {
         dx = unit_vector(dx);
     }
-    
+
     ship_position += dx * .5 * current_dt;
-    
+
     x0 := 0.03;
     x1 := 1 - x0;
     y0 := 0.03;
     y1 := 0.35;
-    
+
     Clamp(&ship_position.x, x0, x1);
     Clamp(&ship_position.y, y0, y1);
-    
+
     simulate_bullets();
     simulate_invaders();
     simulate_pickups();
@@ -479,10 +484,10 @@ do_fire_bullets :: proc() {
             k0 := 1.0;
             k1 := 0.1;
 
-            bullet.emitter.color0 = make_vector4(k0, k0*.3, k0*.3, 1);
-            bullet.emitter.color1 = make_vector4(k1, k1*.3, k1*.3, 1);
+            bullet.emitter.color0 = make_linalg.Vector4f32(k0, k0*.3, k0*.3, 1);
+            bullet.emitter.color1 = make_linalg.Vector4f32(k1, k1*.3, k1*.3, 1);
         }
-        
+
         array_add(&live_bullets, bullet);
 
         return bullet;
@@ -494,7 +499,7 @@ do_fire_bullets :: proc() {
     if ship_shot_type == .STRAIGHT_SINGLE || ship_shot_type == .STRAIGHT_TRIPLE {
         front := fire_bullet();
         front.position.y += 0.015;
-        
+
         num_shots_fired += 1;
 
         if ship_v_shot_countdown && ship_shot_type == .STRAIGHT_SINGLE {
@@ -522,7 +527,7 @@ do_fire_bullets :: proc() {
         num_shots_fired += 2;
     }
 
-    ship_shot_cooldown += ship_shot_cooldown_base + (cast(float) num_shots_fired) * ship_shot_cooldown_per_bullet;
+    ship_shot_cooldown += ship_shot_cooldown_base + (cast(f32) num_shots_fired) * ship_shot_cooldown_per_bullet;
 
     switch num_shots_fired {
         case 1: play_sound(sound_fire_bullet1);
@@ -534,7 +539,7 @@ do_fire_bullets :: proc() {
 maybe_fire_bullets :: proc() {
     if ship_shot_cooldown > 0 { return }
     if ship_destroyed         { return }
-    
+
     do_fire_bullets();
 }
 
@@ -570,10 +575,10 @@ invader_fire_bullet :: proc(invader : ^ Invader) {
             k0 := 0.7;
             k1 := 0.1;
 
-            bullet.emitter.color0 = make_vector4(k0, k0, k0, 1);
-            bullet.emitter.color1 = make_vector4(0.2, 1.0, 0.1, 1);
+            bullet.emitter.color0 = make_linalg.Vector4f32(k0, k0, k0, 1);
+            bullet.emitter.color1 = make_linalg.Vector4f32(0.2, 1.0, 0.1, 1);
         }
-        
+
         return bullet;
     }
 
@@ -698,13 +703,13 @@ simulate_pickups :: proc() {
     }
 }
 
-ilength :: proc(x: float, y: float) -> float {
+ilength :: proc(x: f32, y: f32) -> f32 {
     length := x * x + y * y;
     denom := 1.0 / sqrt(length);
     return denom;
 }
 
-test_against_ship :: proc(position: Vector2, radius: float) -> bool {
+test_against_ship :: proc(position: linalg.Vector2f32, radius: f32) -> bool {
     if ship_destroyed { return false }
     return distance(position, ship_position) < radius + SHIP_RADIUS;
 }
@@ -720,12 +725,12 @@ destroy_invader :: proc(invader: ^Invader) {
 
         emitter.size0 = 0.0008;
         emitter.size1 = 0.01;
-    
+
         emitter.speed0 = 0.1;
         emitter.speed1 = 0.3;
 
-        emitter.color0 = make_vector4(1, 1, 0.3, 1);
-        emitter.color1 = make_vector4(1, 1, 1, 1);
+        emitter.color0 = make_linalg.Vector4f32(1, 1, 0.3, 1);
+        emitter.color1 = make_linalg.Vector4f32(1, 1, 1, 1);
 
         emitter.fadeout_period = 0.1;
         emitter.emitter_lifetime = 0.2;
@@ -739,9 +744,9 @@ destroy_invader :: proc(invader: ^Invader) {
 
         emitter.size0 = 0.015;
         emitter.size1 = 0.06;
-    
-        emitter.color0 = make_vector4(1, 1, 1, 1);
-        emitter.color1 = make_vector4(1, 0.7, 0.1, 1);
+
+        emitter.color0 = make_linalg.Vector4f32(1, 1, 1, 1);
+        emitter.color1 = make_linalg.Vector4f32(1, 0.7, 0.1, 1);
 
         emitter.fadeout_period = 0.3;
         emitter.emitter_lifetime = 0.3;
@@ -758,7 +763,7 @@ destroy_invader :: proc(invader: ^Invader) {
         roll := random_get() % 100;
 
         pickup.position = invader.position;
-        pickup.velocity = make_vector2(0, PICKUP_SPEED * random_get_within_range(0.7, 1.7));
+        pickup.velocity = make_linalg.Vector2f32(0, PICKUP_SPEED * random_get_within_range(0.7, 1.7));
 
         if roll < 20 {
             pickup.type = .V_SHOT;
@@ -787,12 +792,12 @@ destroy_ship :: proc() {
 
         emitter.size0 = 0.0004;
         emitter.size1 = 0.005;
-    
+
         emitter.speed0 = 0.15;
         emitter.speed1 = 0.45;
 
-        emitter.color0 = make_vector4(1, 1, 0.3, 1);
-        emitter.color1 = make_vector4(1, 1, 1, 1);
+        emitter.color0 = make_linalg.Vector4f32(1, 1, 0.3, 1);
+        emitter.color1 = make_linalg.Vector4f32(1, 1, 1, 1);
 
         emitter.fadeout_period = 0.1;
         emitter.emitter_lifetime = 0.2;
@@ -806,9 +811,9 @@ destroy_ship :: proc() {
 
         emitter.size0 = 0.015;
         emitter.size1 = 0.06;
-    
-        emitter.color0 = make_vector4(1, 1, 1, 1);
-        emitter.color1 = make_vector4(.94, 1, 0.05, 1);
+
+        emitter.color0 = make_linalg.Vector4f32(1, 1, 1, 1);
+        emitter.color1 = make_linalg.Vector4f32(.94, 1, 0.05, 1);
 
         emitter.fadeout_period = 0.3;
         emitter.emitter_lifetime = 0.3;
@@ -828,7 +833,7 @@ test_against_invaders :: proc(bullet: ^Bullet) -> bool {
         }
     }
 
-    return false;                              
+    return false;
 }
 
 player_got_pickup :: proc(pickup: ^Pickup) {
@@ -849,7 +854,7 @@ player_got_pickup :: proc(pickup: ^Pickup) {
     }
 }
 
-linear_move :: proc(position : ^Vector2, velocity : ^Vector2, dt : float) {
+linear_move :: proc(position : ^linalg.Vector2f32, velocity : ^linalg.Vector2f32, dt : f32) {
     position.x += velocity.x * dt;
     position.y += velocity.y * dt;
 }
@@ -859,15 +864,15 @@ ship_is_shielded :: proc() -> bool {
     return false;
 }
 
-draw_ship_at :: proc(texture: Texture, pos: Vector2, size: Vector2, color: Vector4) {
+draw_ship_at :: proc(texture: ^SDL.Texture, pos: linalg.Vector2f32, size: linalg.Vector2f32, color: linalg.Vector4f32) {
     ship_color := color;
 
     if ship_is_shielded() {
-        rate : float64 = 1.5;
+        rate : f64 = 1.5;
         if ship_invincibility_countdown < 1.7 { rate = 4.5 }
 
-        theta := last_time * TAU64 * rate;
-        y := cos(cast(float) theta);
+        theta := last_time * math.τ * rate;
+        y := math.cos(cast(f32) theta);
 
         k := (y + 1.0) * 0.5;
 
@@ -884,12 +889,12 @@ draw_ship_at :: proc(texture: Texture, pos: Vector2, size: Vector2, color: Vecto
     render_sprite_quad_centered(&texture, pos, size, ship_color);
 }
 
-render_sprite_quad_centered :: proc(texture: ^Texture, _pos: Vector2, size: Vector2, color: Vector4) {
+render_sprite_quad_centered :: proc(texture: ^SDL.Texture, _pos: linalg.Vector2f32, size: linalg.Vector2f32, color: linalg.Vector4f32) {
     Simp.set_shader_for_images(texture);
-    
-    pos := _pos * cast(float) window_width;
-    h := make_vector2(size.x*.5*window_width, 0);
-    v := make_vector2(0, size.y*.5*window_width);
+
+    pos := _pos * cast(f32) window_width;
+    h := make_linalg.Vector2f32(size.x*.5*window_width, 0);
+    v := make_linalg.Vector2f32(0, size.y*.5*window_width);
 
     p0 := pos - h - v;
     p1 := pos + h - v;
@@ -899,7 +904,7 @@ render_sprite_quad_centered :: proc(texture: ^Texture, _pos: Vector2, size: Vect
     Simp.immediate_quad(p0, p1, p2, p3,  color);
 }
 
-play_sound :: proc(data: ^Mixer_Sound_Data, perturb: bool = true) -> ^Sound_Stream {
+play_sound :: proc(data: ^mixer.Music, perturb: bool = true) -> ^Sound_Stream {
     stream := make_stream(sound_player, data);
 
     if stream {
@@ -912,12 +917,12 @@ play_sound :: proc(data: ^Mixer_Sound_Data, perturb: bool = true) -> ^Sound_Stre
     }
 
     stream.repeat_end_position = cast(int)(data.sampling_rate * 234.475);  // @Temporary @Hack! We do not get the duration by default from an ogg file...
-    
+
     return stream;
 }
 
-load_audio_file :: proc(name : string) -> ^Mixer_Sound_Data {
-    data : ^Mixer_Sound_Data = null;
+load_audio_file :: proc(name : string) -> ^mixer.Music {
+    data : ^mixer.Music = null;
 
     file_data, success := read_entire_file(name);
     if !success { return data; }
@@ -930,7 +935,7 @@ load_audio_file :: proc(name : string) -> ^Mixer_Sound_Data {
     }
 
     if has_extension(name, WAV) {
-        data = New(Mixer_Sound_Data);
+        data = New(mixer.Music);
         data.name = copy_string(name);
         data.buffer = file_data;
 
@@ -950,7 +955,7 @@ load_audio_file :: proc(name : string) -> ^Mixer_Sound_Data {
             data.nBlockAlign      = format.nBlockAlign;
 
             data.nchannels = cast(u16) format.nChannels;
-            // The value in the FACT chunk is number of samples by time. 
+            // The value in the FACT chunk is number of samples by time.
             data.nsamples_times_nchannels = extra.wSamplesAccordingToFactChunk * data.nchannels;
         } else {
             assert(false);
@@ -959,7 +964,7 @@ load_audio_file :: proc(name : string) -> ^Mixer_Sound_Data {
         data.samples       = cast(^s16) samples.data;
         data.sampling_rate = cast(u32) format.nSamplesPerSec;
     } else if has_extension(name, OGG) {
-        data = New(Mixer_Sound_Data);
+        data = New(mixer.Music);
         data.name   = copy_string(name);
         data.buffer = file_data;
         data.type   = .OGG_COMPRESSED;
@@ -970,7 +975,7 @@ load_audio_file :: proc(name : string) -> ^Mixer_Sound_Data {
     return data;
 }
 
-update_sound_player :: proc(dt: float) {
+update_sound_player :: proc(dt: f32) {
     //
     // Move sound streams forward by dt.
     //
@@ -987,7 +992,7 @@ update_sound_player :: proc(dt: float) {
     }
 
     post_entity_update(sound_player, current_dt);
-}    
+}
 
 
 my_init_fonts :: proc() {
