@@ -2,6 +2,7 @@ package invaders
 
 import "core:math"
 import "core:math/linalg"
+import "core:os"
 import SDL "vendor:sdl2"
 import "vendor:sdl2/mixer"
 
@@ -55,7 +56,7 @@ sound_shield_end:          ^mixer.Music;
 sound_shield_loop:         ^mixer.Music;  // Currently unused?! @Cleanup
 sound_bullet_reset:        ^mixer.Music;
 
-sound_player: ^Sound_Player;
+// sound_player: ^Sound_Player;
 
 current_dt: f32 = 0.016667;
 last_time:  f64;
@@ -155,8 +156,8 @@ main :: proc() {
     window := create_window(window_name="Invaders", width=window_width, height=window_height);
     Simp.set_render_target(window);
 
-    sound_player = New(Sound_Player);
-    sound_player.update_history = true;
+    // sound_player = New(Sound_Player);
+    // sound_player.update_history = true;
 
     //
     // Load sound effects
@@ -167,7 +168,7 @@ main :: proc() {
 
         if !data {
             print("Error: Could not load wav file: %\n", name);
-            exit(1); // Hard-exit for now.
+            os.exit(1); // Hard-exit for now.
             return null;
         }
 
@@ -207,7 +208,7 @@ main :: proc() {
 
         if data == nil {
             print("Could not load theme music: %\n", name);
-            exit(1); // Hard-exit for now.
+            os.exit(1); // Hard-exit for now.
         }
 
         stream := play_sound(data, false);
@@ -219,7 +220,7 @@ main :: proc() {
         }
     }
 
-    success := init(sound_player, window.?, true, true);
+    // success := init(sound_player, window.?, true, true);
     // assert(success); // @Incomplete We need an audio pass. Low priority (for now).
 
     my_init_fonts();
@@ -975,24 +976,24 @@ load_audio_file :: proc(name : string) -> ^mixer.Music {
     return data;
 }
 
-update_sound_player :: proc(dt: f32) {
-    //
-    // Move sound streams forward by dt.
-    //
-    lock(&sound_player.sound_mutex);
-    defer unlock(&sound_player.sound_mutex);
+// update_sound_player :: proc(dt: f32) {
+//     //
+//     // Move sound streams forward by dt.
+//     //
+//     lock(&sound_player.sound_mutex);
+//     defer unlock(&sound_player.sound_mutex);
 
-    pre_entity_update(sound_player);
+//     pre_entity_update(sound_player);
 
-    //
-    // @Incomplete We're not removing sound streams once they're consumed.
-    //
-    for it in sound_player.streams {
-        it.marked = true;
-    }
+//     //
+//     // @Incomplete We're not removing sound streams once they're consumed.
+//     //
+//     for it in sound_player.streams {
+//         it.marked = true;
+//     }
 
-    post_entity_update(sound_player, current_dt);
-}
+//     post_entity_update(sound_player, current_dt);
+// }
 
 
 my_init_fonts :: proc() {
