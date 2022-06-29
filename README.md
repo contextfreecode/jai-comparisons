@@ -1,4 +1,1 @@
-```
-$ realpath .
-/home/tjpalmer/apps/jai-beta-1-027/examples/invaders
-```
+Invaders originally based on example in jai-beta-1-027
