@@ -1,3 +1,5 @@
+// Originally based on example in jai-beta-1-027
+
 package invaders
 
 import "core:math"
