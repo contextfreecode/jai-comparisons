@@ -21,7 +21,7 @@ err_count := 0
 ask_guess :: proc(high: int) -> (result: int, ok: bool) {
 	fmt.printf("Guess a number between 1 and %d: ", high)
 	if text, ok := read_line(); ok {
-		defer mem.delete(text)
+		defer delete(text)
 		return strconv.parse_int(s = text, base = 10)
 	}
 	return
@@ -29,16 +29,13 @@ ask_guess :: proc(high: int) -> (result: int, ok: bool) {
 
 ask_guess_multi :: proc(high: int) -> int {
 	for {
-		if result, ok := ask_guess(high); ok {
+		if result, ok := ask_guess(high = high); ok {
 			return result
 		}
 		fmt.println("I didn't understand")
 		err_count += 1
 	}
 }
-
-// No overloading.
-// pick_answer :: proc(high: string) -> int { return 0 }
 
 pick_answer :: proc(high: int, r: ^rand.Rand) -> int {
 	return rand.int_max(high, r) + 1

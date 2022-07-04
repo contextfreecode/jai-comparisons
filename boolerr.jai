@@ -41,9 +41,6 @@ build_summary :: (doc: Doc) -> Summary {
     result := Summary.{ok = true};
     if (doc.head != null) {
         result.title = doc.head.title;
-    } else {
-        // TODO Is this necessary?
-        result.title = .{exists = false};
     }
     return result;
 }

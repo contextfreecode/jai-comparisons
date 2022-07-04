@@ -19,12 +19,12 @@ ask_guess :: (high: int) -> result: int, ok: bool {
         result, ok, _ := to_integer(text);
         return result, ok;
     }
-    return 0, false;
+    return result = 0, ok = false;
 }
 
 ask_guess_multi :: (high: int) -> int {
     while true {
-        result, ok := ask_guess(high);
+        result, ok := ask_guess(high = high);
         if ok then return result;
         print("I didn't understand\n");
         err_count += 1;
@@ -32,9 +32,6 @@ ask_guess_multi :: (high: int) -> int {
     // Shouldn't ever happen, but avoids warning.
     return -1;
 }
-
-// Overloading allowed.
-// pick_answer :: (high: string) -> int { return 0; }
 
 pick_answer :: (high: int) -> int {
     return cast(int) (random_get() % cast(u64) high) + 1;
